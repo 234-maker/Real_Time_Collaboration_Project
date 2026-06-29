@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Synapse Collab - Real-Time Whiteboard & Notes</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- Background Animated Orbs -->
+  <div class="background-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <!-- Real-Time Cursor Layer -->
+  <div id="remote-cursors" class="remote-cursors-container"></div>
+
+  <!-- Room Entry Overlay Screen -->
+  <div id="entry-screen" class="entry-screen">
+    <div class="entry-card glass">
+      <div class="brand-logo">
+        <div class="logo-icon">S</div>
+        <h2>Synapse <span>Collab</span></h2>
+      </div>
+      <p class="brand-tagline">Real-time collaborative canvas & notes</p>
+      
+      <form id="join-form" class="entry-form">
+        <div class="form-group">
+          <label for="username-input">Your Name</label>
+          <input type="text" id="username-input" placeholder="Enter username..." required maxlength="15" autocomplete="off">
+        </div>
+        
+        <div class="form-group">
+          <label for="room-input">Room ID</label>
+          <div class="room-input-container">
+            <input type="text" id="room-input" placeholder="Create or enter Room ID..." required maxlength="20" autocomplete="off">
+            <button type="button" id="generate-room-btn" title="Generate Random ID">
+              <i data-lucide="shuffle"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Avatar Accent Color</label>
+          <div class="color-picker-grid" id="avatar-color-picker">
+            <div class="avatar-color active" style="background-color: #ff3366;" data-color="#ff3366"></div>
+            <div class="avatar-color" style="background-color: #ff9f1c;" data-color="#ff9f1c"></div>
+            <div class="avatar-color" style="background-color: #2ec4b6;" data-color="#2ec4b6"></div>
+            <div class="avatar-color" style="background-color: #0077b6;" data-color="#0077b6"></div>
+            <div class="avatar-color" style="background-color: #a200ff;" data-color="#a200ff"></div>
+            <div class="avatar-color" style="background-color: #20bf55;" data-color="#20bf55"></div>
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn">
+          <span>Enter Workspace</span>
+          <i data-lucide="arrow-right"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main Application Workspace -->
+  <div id="app-workspace" class="app-workspace hidden">
+    
+    <!-- Sidebar Panel (Glassmorphic) -->
+    <aside class="sidebar glass">
+      <div class="sidebar-header">
+        <div class="logo-icon-sm">S</div>
+        <h3>Synapse</h3>
+        <span class="pulse-indicator"></span>
+      </div>
+
+      <!-- Room Stats Widget -->
+      <div class="sidebar-section room-card glass-inset">
+        <div class="room-info">
+          <span class="label">Workspace Room</span>
+          <div class="room-id-display">
+            <h4 id="display-room-id">ROOM_NAME</h4>
+            <button id="copy-room-btn" title="Copy Invite Link">
+              <i data-lucide="copy"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab View Controllers -->
+      <div class="sidebar-section">
+        <span class="section-label">Workspace View</span>
+        <div class="view-selectors">
+          <button id="tab-canvas" class="view-btn active" data-view="canvas">
+            <i data-lucide="palette"></i>
+            <span>Whiteboard</span>
+          </button>
+          <button id="tab-notes" class="view-btn" data-view="notes">
+            <i data-lucide="file-text"></i>
+            <span>Notepad</span>
+          </button>
+          <button id="tab-split" class="view-btn" data-view="split">
+            <i data-lucide="columns"></i>
+            <span>Split Screen</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Users List -->
+      <div class="sidebar-section flex-grow">
+        <span class="section-label">Active Collaborators (<span id="user-count">0</span>)</span>
+        <div id="users-list" class="users-list-container">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+
+      <!-- Activity/Chat Logs -->
+      <div class="sidebar-section logs-panel">
+        <span class="section-label">Live Activity</span>
+        <div id="activity-logs" class="activity-logs-container">
+          <!-- Populated by socket events -->
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button id="leave-workspace-btn" class="leave-btn">
+          <i data-lucide="log-out"></i>
+          <span>Leave Room</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Workspace Container -->
+    <main class="workspace-container">
+      
+      <!-- Panel 1: Whiteboard Canvas -->
+      <section id="panel-canvas" class="workspace-panel canvas-panel active">
+        <!-- Canvas Floating Toolbar (Top) -->
+        <div class="floating-toolbar glass">
+          <div class="toolbar-group">
+            <button class="tool-btn active" data-tool="pen" title="Draw Tool">
+              <i data-lucide="edit-3"></i>
+            </button>
+            <button class="tool-btn" data-tool="line" title="Line Tool">
+              <i data-lucide="minus"></i>
+            </button>
+            <button class="tool-btn" data-tool="rectangle" title="Rectangle Tool">
+              <i data-lucide="square"></i>
+            </button>
+            <button class="tool-btn" data-tool="circle" title="Circle Tool">
+              <i data-lucide="circle"></i>
+            </button>
+            <button class="tool-btn" data-tool="text" title="Text Tool">
+              <i data-lucide="type"></i>
+            </button>
+            <button class="tool-btn" data-tool="sticky" title="Create Sticky Note">
+              <i data-lucide="sticky-note"></i>
+            </button>
+            <button class="tool-btn" data-tool="eraser" title="Eraser Tool">
+              <i data-lucide="eraser"></i>
+            </button>
+          </div>
+          
+          <div class="divider"></div>
+
+          <div class="toolbar-group font-controls hidden" id="text-controls">
+            <select id="font-family-select" class="toolbar-select">
+              <option value="Outfit">Outfit</option>
+              <option value="sans-serif">Sans-Serif</option>
+              <option value="serif">Serif</option>
+              <option value="Fira Code">Fira Code</option>
+            </select>
+          </div>
+
+          <div class="toolbar-group">
+            <div class="brush-preview-container" title="Stroke Thickness">
+              <div id="brush-preview" class="brush-preview"></div>
+              <input type="range" id="brush-size" min="2" max="30" value="5" class="brush-slider">
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="toolbar-group flex-wrap color-palette">
+            <div class="color-swatch active" style="background-color: #ffffff;" data-color="#ffffff" title="White"></div>
+            <div class="color-swatch" style="background-color: #ff3366;" data-color="#ff3366" title="Pink Glow"></div>
+            <div class="color-swatch" style="background-color: #ff9f1c;" data-color="#ff9f1c" title="Gold"></div>
+            <div class="color-swatch" style="background-color: #00f0ff;" data-color="#00f0ff" title="Neon Cyan"></div>
+            <div class="color-swatch" style="background-color: #2ec4b6;" data-color="#2ec4b6" title="Teal"></div>
+            <div class="color-swatch" style="background-color: #20bf55;" data-color="#20bf55" title="Neon Green"></div>
+            <div class="color-swatch" style="background-color: #a200ff;" data-color="#a200ff" title="Purple Glow"></div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="toolbar-group">
+            <button id="undo-btn" title="Undo Action" class="action-btn">
+              <i data-lucide="undo"></i>
+            </button>
+            <button id="clear-btn" title="Clear Board" class="action-btn warning-hover">
+              <i data-lucide="trash-2"></i>
+            </button>
+            <button id="download-btn" title="Download Canvas PNG" class="action-btn success-hover">
+              <i data-lucide="download"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Canvas Body (Interactive wrapper for handling Pan/Zoom transforms) -->
+        <div id="canvas-viewport" class="canvas-viewport">
+          <canvas id="whiteboard-canvas"></canvas>
+          <!-- Absolute HTML overlay for Sticky Notes container synced with Canvas translate/scale matrices -->
+          <div id="sticky-notes-layer" class="sticky-notes-layer"></div>
+        </div>
+
+        <!-- Infinite Canvas Instructions overlay -->
+        <div class="canvas-hint">
+          <i data-lucide="mouse-pointer"></i>
+          <span>Hold <strong>Space + Drag</strong> or use <strong>Right-Click Drag</strong> to pan. Scroll to zoom (<span id="zoom-value">100</span>%).</span>
+        </div>
+      </section>
+
+      <!-- Panel 2: Document Notepad -->
+      <section id="panel-notes" class="workspace-panel notes-panel">
+        <div class="notepad-container glass">
+          <div class="notepad-header">
+            <div class="notepad-title-area">
+              <i data-lucide="file-text" class="glow-icon"></i>
+              <h3>Collaborative Workspace Notes</h3>
+            </div>
+            
+            <div class="notepad-controls">
+              <button id="btn-toggle-preview" class="control-toggle-btn" title="Toggle Preview Pane">
+                <i data-lucide="eye"></i>
+                <span>Preview</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="notepad-editor-layout">
+            <!-- Left Side: Live synched Text Editor -->
+            <div class="editor-pane">
+              <div class="typing-indicator" id="typing-indicator">
+                <span class="indicator-dot"></span>
+                <span class="indicator-text">All changes synced.</span>
+              </div>
+              <textarea id="notes-textarea" placeholder="Start typing together... support markdown formatting." spellcheck="false"></textarea>
+            </div>
+
+            <!-- Right Side: Markdown Preview Pane -->
+            <div class="preview-pane hidden" id="preview-pane">
+              <div class="preview-header">Parsed Markdown Preview</div>
+              <div id="markdown-preview-content" class="markdown-preview-content">
+                <!-- Parsed HTML will go here -->
+              </div>
+            </div>
+          </div>
+
+          <div class="notepad-footer">
+            <div class="doc-stats">
+              <span>Lines: <strong id="line-count">0</strong></span>
+              <span>Words: <strong id="word-count">0</strong></span>
+            </div>
+            <div class="active-editors" id="active-editors-list">
+              <!-- Sync cursors labels -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Client JavaScript -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    if (typeof io === 'undefined') {
+      document.write('<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"><\/script>');
+    }
+  </script>
+  <script src="client.js"></script>
+</body>
+</html>
